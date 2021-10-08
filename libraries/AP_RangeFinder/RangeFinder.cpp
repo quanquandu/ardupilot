@@ -349,11 +349,20 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
     case RangeFinder_TYPE_MBI2C:
         FOREACH_I2C(i) {
             if (_add_backend(AP_RangeFinder_MaxsonarI2CXL::detect(state[instance], params[instance],
-                                                                  hal.i2c_mgr->get_device(i, AP_RANGE_FINDER_MAXSONARI2CXL_DEFAULT_ADDR)))) {
+                hal.i2c_mgr->get_device(i, params[instance].address)))) {//AP_RANGE_FINDER_MAXSONARI2CXL_DEFAULT_ADDR
                 break;
             }
         }
+        
         break;
+
+        //FOREACH_I2C(i) {
+        //    if (_add_backend(AP_RangeFinder_MaxsonarI2CXL::detect(state[instance], params[instance],
+        //                                                          hal.i2c_mgr->get_device(i, AP_RANGE_FINDER_MAXSONARI2CXL_DEFAULT_ADDR)))) {
+        //        break;
+        //    }
+        //}
+        //break;
     case RangeFinder_TYPE_LWI2C:
         if (params[instance].address) {
             // the LW20 needs a long time to boot up, so we delay 1.5s here
