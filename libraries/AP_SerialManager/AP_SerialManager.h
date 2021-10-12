@@ -124,6 +124,12 @@ public:
         SerialProtocol_SLCAN = 22,
         SerialProtocol_RCIN = 23,
         SerialProtocol_Hott = 27,
+        SerialProtocol_NRA24_DOWN = 28,
+        SerialProtocol_NRA24_FORWARD = 29,
+        SERIALPROTOCOL_NRA24_BACKWARD = 30,
+        SERIALPROTOCOL_NRA24_LEFT = 31,
+        SERIALPROTOCOL_NRA24_RIGHT = 32,
+        SERIALPROTOCOL_NRA24_UP = 33,
     };
 
     // get singleton instance

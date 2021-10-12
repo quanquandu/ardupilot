@@ -324,19 +324,6 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
 {
     enum RangeFinder_Type _type = (enum RangeFinder_Type)params[instance].type.get();
     switch (_type) {
-    case RangeFinder_TYPE_NRA24:
-        if (AP_RangeFinder_NRA24::detect(serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_NRA24(state[instance], params[instance], serial_instance++);
-        }
-        break;
-
-        //这里将会调用我们自己定义的驱动 	if(AP_RangeFinder_NRA24::detect(serial_manager,serial_instance))
-    //{
-    //    drivers[instance] = new AP_RangeFinder_NRA24(state[instance], serial_manager, serial_instance++);
-
-    //}
-    //break;
-
     case RangeFinder_TYPE_PLI2C:
     case RangeFinder_TYPE_PLI2CV3:
     case RangeFinder_TYPE_PLI2CV3HP:
@@ -515,6 +502,19 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
             drivers[instance] = new AP_RangeFinder_Lanbao(state[instance], params[instance], serial_instance++);
         }
         break;
+    case RangeFinder_TYPE_NRA24:
+        if (AP_RangeFinder_NRA24::detect(serial_instance, params[instance])) {
+            drivers[instance] = new AP_RangeFinder_NRA24(state[instance], params[instance], serial_instance++);
+        }
+        break;
+
+        //这里将会调用我们自己定义的驱动 	if(AP_RangeFinder_NRA24::detect(serial_manager,serial_instance))
+    //{
+    //    drivers[instance] = new AP_RangeFinder_NRA24(state[instance], serial_manager, serial_instance++);
+
+    //}
+    //break;
+
     default:
         break;
     }
