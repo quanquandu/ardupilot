@@ -27,9 +27,9 @@ AP_RangeFinder_NRA24::AP_RangeFinder_NRA24( RangeFinder::RangeFinder_State& _sta
     }
     else if (_params.orientation == 4)
     {
-        uart = serial_manager.find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACKWARD, serial_instance);
+        uart = serial_manager.find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance);
         if (uart != nullptr) {
-            uart->begin(serial_manager.find_baudrate(AP_SerialManager::SERIALPROTOCOL_NRA24_BACKWARD, serial_instance));
+            uart->begin(serial_manager.find_baudrate(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance));
         }
     }
     else if (_params.orientation == 6)
@@ -82,7 +82,7 @@ bool AP_RangeFinder_NRA24::detect(
     }
     else if (_params.orientation == 4)
     {
-        return AP::serialmanager().find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACKWARD, serial_instance) != nullptr;
+        return AP::serialmanager().find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance) != nullptr;
     }
     else if (_params.orientation == 6)
     {
@@ -172,17 +172,22 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
                 _reading_state = Status::GET_TAIL_ONCE;
             break;
         }
-
         case Status::GET_TAIL_ONCE: {
             if (c == 0x55) {
                 buffer_count++;
                 linebuf[buffer_count] = c;
-                _reading_state = Status::GET_ONE_FRAME;
+                _reading_state = Status::GET_ONE_FRAME;	//		原文这里有问题不应该break
             }
-            //		break;原文这里有问题不应该break
+            else
+            {
+                _reading_state = Status::WAITTING_FOR_TAIL;//还没有到结尾
+                break;
+            }
         }
         case Status::GET_ONE_FRAME: {
             _reading_state = Status::WAITTING;
+            if (buffer_count != 13)
+                return false;
             if (if_data_frame(linebuf, reading_cm)) return true;
             break;
         }
@@ -190,7 +195,7 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
         default:
             break;
         }
-        if (buffer_count > sizeof(linebuf)) {
+        if (buffer_count > 50) {
             buffer_count = 0;
             _reading_state = Status::WAITTING;
         }
