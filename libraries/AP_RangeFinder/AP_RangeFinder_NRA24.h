@@ -35,6 +35,7 @@ protected:
     }
 private:
     //获取数据
+    bool send_start_command();
     bool get_reading(uint16_t& reading_cm);
     AP_HAL::UARTDriver* uart = nullptr;
     uint32_t last_reading_ms = 0;

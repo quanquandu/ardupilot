@@ -9,7 +9,11 @@ AP_RangeFinder_NRA24::AP_RangeFinder_NRA24( RangeFinder::RangeFinder_State& _sta
     uint8_t serial_instance) :
     AP_RangeFinder_Backend(_state, _params) 
 {
+
     const AP_SerialManager& serial_manager = AP::serialmanager();
+
+    hal.uartF->begin(115200);//打开测试端口
+
     // 0:Forward, 1:Forward-Right, 2:Right, 3:Back-Right, 4:Back, 5:Back-Left, 6:Left, 7:Forward-Left, 24:Up, 25:Down
     if (_params.orientation == 25)
     {
@@ -53,25 +57,24 @@ AP_RangeFinder_NRA24::AP_RangeFinder_NRA24( RangeFinder::RangeFinder_State& _sta
             uart->begin(serial_manager.find_baudrate(AP_SerialManager::SERIALPROTOCOL_NRA24_UP, serial_instance));
         }
     }
-    /* //   const AP_SerialManager& serial_manager = AP::serialmanager();
- //   uart = serial_manager.find_serial(AP_SerialManager::SerialProtocol_Rangefinder, serial_instance);
- //   uart->begin(serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance));
 
-    const AP_SerialManager& serial_manager = AP::serialmanager();
-    uart = hal.uartD;// serial_manager.find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance);
-    if (uart != nullptr) {
-        uart->begin(serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance));
-        //uart->begin(115200);
-    }
-*/
+    send_start_command();
 }
 
+bool AP_RangeFinder_NRA24::send_start_command()
+{
+    if (uart != nullptr) {
+        uint8_t buffer[] = { 0xAA,0xAA,0x00,0x02,0xFE,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x55,0x55 };
+        uart->write(buffer, sizeof(buffer));
+        return true;
+    }
+    return false;
+}
 
 bool AP_RangeFinder_NRA24::detect(
     uint8_t serial_instance,
     AP_RangeFinder_Params& _params)
 {
-   // return AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance) != nullptr;
     if (_params.orientation == 25)
     {
         return AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance) != nullptr;
@@ -106,23 +109,11 @@ inline bool if_data_frame(uint8_t* buf, uint16_t& reading_cm) {
 
     uint8_t* msg_id = (buf + 2);
 
-    if ((msg_id[0] + (((uint16_t)msg_id[1]) << 8)) != 0x70c) return false;
-
-
-    //reading_cm = static_cast<uint16_t>(((payload[2] << 8) + payload[3] * 0.01) * 100);
-    reading_cm = static_cast<uint16_t>(((payload[2] << 8) + payload[3]));
-
-    return true;
-
-    uint16_t id = msg_id[0] + msg_id[1] * 0x100;
-
-    if (id != 0x70c)
-    {
-
+    if ((msg_id[0] + (((uint16_t)msg_id[1]) << 8)) != 0x70c)
         return false;
-    }
 
-    reading_cm = payload[2] * 0x100 + payload[3];
+    reading_cm = static_cast<uint16_t>(((payload[2] << 8) + payload[3]));
+    hal.uartF->write((uint8_t)reading_cm);//串口测试
 
     return true;
 }
@@ -132,10 +123,11 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
     if (uart == nullptr) {
         return false;
     }
+
     uint32_t nbytes = uart->available();
     while (nbytes-- > 0) {
         uint8_t c = uart->read();
-
+      //  hal.uartF->write(c);
         switch (_reading_state)
         {
         case Status::WAITTING: {
@@ -187,8 +179,14 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
         case Status::GET_ONE_FRAME: {
             _reading_state = Status::WAITTING;
             if (buffer_count != 13)
+            {
                 return false;
-            if (if_data_frame(linebuf, reading_cm)) return true;
+            }
+            if (if_data_frame(linebuf, reading_cm))
+            {
+                if (nbytes == 0)
+                    return true;
+            }
             break;
         }
 
@@ -196,6 +194,7 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
             break;
         }
         if (buffer_count > 50) {
+            send_start_command();
             buffer_count = 0;
             _reading_state = Status::WAITTING;
         }
