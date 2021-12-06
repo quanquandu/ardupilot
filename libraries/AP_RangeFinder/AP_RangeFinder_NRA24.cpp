@@ -12,28 +12,28 @@ AP_RangeFinder_NRA24::AP_RangeFinder_NRA24( RangeFinder::RangeFinder_State& _sta
 
     const AP_SerialManager& serial_manager = AP::serialmanager();
 
-    hal.uartF->begin(115200);//打开测试端口
+    //hal.uartF->begin(115200);//打开测试端口
 
     // 0:Forward, 1:Forward-Right, 2:Right, 3:Back-Right, 4:Back, 5:Back-Left, 6:Left, 7:Forward-Left, 24:Up, 25:Down
     if (_params.orientation == 25)
     {
-        uart = serial_manager.find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance);
+        uart = hal.uartE;// serial_manager.find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance);
         if (uart != nullptr) {
-            uart->begin(serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance));
+            uart->begin(115200);// serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance));
         }
     }
     else if (_params.orientation == 0)
     {
-        uart = serial_manager.find_serial(AP_SerialManager::SerialProtocol_NRA24_FORWARD, serial_instance);
+        uart = hal.uartF;// serial_manager.find_serial(AP_SerialManager::SerialProtocol_NRA24_FORWARD, serial_instance);
         if (uart != nullptr) {
-            uart->begin(serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_NRA24_FORWARD, serial_instance));
+            uart->begin(115200); //serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_NRA24_FORWARD, serial_instance));
         }
     }
     else if (_params.orientation == 4)
     {
-        uart = serial_manager.find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance);
+        uart = hal.uartD;//serial_manager.find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance);
         if (uart != nullptr) {
-            uart->begin(serial_manager.find_baudrate(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance));
+            uart->begin(115200); //(serial_manager.find_baudrate(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance));
         }
     }
     else if (_params.orientation == 6)
@@ -77,15 +77,15 @@ bool AP_RangeFinder_NRA24::detect(
 {
     if (_params.orientation == 25)
     {
-        return AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance) != nullptr;
+        return true;// AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_NRA24_DOWN, serial_instance) != nullptr;
     }
     else if (_params.orientation == 0)
     {
-        return AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_NRA24_FORWARD, serial_instance) != nullptr;
+        return true;// AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_NRA24_FORWARD, serial_instance) != nullptr;
     }
     else if (_params.orientation == 4)
     {
-        return AP::serialmanager().find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance) != nullptr;
+        return true;//AP::serialmanager().find_serial(AP_SerialManager::SERIALPROTOCOL_NRA24_BACK, serial_instance) != nullptr;
     }
     else if (_params.orientation == 6)
     {
@@ -113,21 +113,26 @@ inline bool if_data_frame(uint8_t* buf, uint16_t& reading_cm) {
         return false;
 
     reading_cm = static_cast<uint16_t>(((payload[2] << 8) + payload[3]));
-    hal.uartF->write((uint8_t)reading_cm);//串口测试
+ //   hal.uartF->write((uint8_t)reading_cm);//串口测试
 
     return true;
 }
 
 bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
 {
+    bool bGot = false;
     if (uart == nullptr) {
         return false;
     }
 
     uint32_t nbytes = uart->available();
     while (nbytes-- > 0) {
+
         uint8_t c = uart->read();
-      //  hal.uartF->write(c);
+        //  hal.uartF->write(c);
+        if (buffer_count > 50) {
+            _reading_state = Status::WAITTING;
+        }
         switch (_reading_state)
         {
         case Status::WAITTING: {
@@ -180,11 +185,12 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
             _reading_state = Status::WAITTING;
             if (buffer_count != 13)
             {
-                return false;
+                break;//          return false;
             }
             if (if_data_frame(linebuf, reading_cm))
             {
-                if (nbytes == 0)
+                bGot = true;
+                if (nbytes < 14)
                     return true;
             }
             break;
@@ -193,11 +199,12 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
         default:
             break;
         }
-        if (buffer_count > 50) {
-            send_start_command();
-            buffer_count = 0;
-            _reading_state = Status::WAITTING;
+
+        if (bGot == true)
+        {
+            return true;
         }
+
     }
 
     return false;
@@ -208,12 +215,15 @@ void AP_RangeFinder_NRA24::update(void)
 {
     if (get_reading(state.distance_cm))  //获取数据state.distance_cm
     {
+        last_distance_cm = state.distance_cm;
         // update range_valid state based on distance measured
         last_reading_ms = AP_HAL::millis();
         update_status();
     }
-    else if (AP_HAL::millis() - last_reading_ms > 3000) //如果3s还没数据，提示没数据
+    else //if (AP_HAL::millis() - last_reading_ms > 3000) //如果3s还没数据，提示没数据
     {
-        set_status(RangeFinder::RangeFinder_NoData);
+        state.distance_cm = last_distance_cm;
+        update_status();
+        //set_status(RangeFinder::RangeFinder_NoData);
     }
 }

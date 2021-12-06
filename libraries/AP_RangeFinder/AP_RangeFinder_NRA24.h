@@ -39,7 +39,7 @@ private:
     bool get_reading(uint16_t& reading_cm);
     AP_HAL::UARTDriver* uart = nullptr;
     uint32_t last_reading_ms = 0;
-
+    uint16_t last_distance_cm = 0;
     uint8_t linebuf[50];
     uint8_t buffer_count = 0;
 };

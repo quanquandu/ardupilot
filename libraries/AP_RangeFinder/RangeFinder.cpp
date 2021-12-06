@@ -507,6 +507,11 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
             drivers[instance] = new AP_RangeFinder_NRA24(state[instance], params[instance], serial_instance++);
         }
         break;
+    case RangeFinder_TYPE_SP25:
+        if (AP_RangeFinder_NRA24::detect(serial_instance, params[instance])) {
+            drivers[instance] = new AP_RangeFinder_NRA24(state[instance], params[instance], serial_instance++);
+        }
+        break;
 
         //这里将会调用我们自己定义的驱动 	if(AP_RangeFinder_NRA24::detect(serial_manager,serial_instance))
     //{
