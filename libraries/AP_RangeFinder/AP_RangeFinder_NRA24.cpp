@@ -174,6 +174,20 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
                 buffer_count++;
                 linebuf[buffer_count] = c;
                 _reading_state = Status::GET_ONE_FRAME;	//		原文这里有问题不应该break
+                {
+                    _reading_state = Status::WAITTING;
+                    if (buffer_count != 13)
+                    {
+                        break;//          return false;
+                    }
+                    if (if_data_frame(linebuf, reading_cm))
+                    {
+                        bGot = true;
+                        if (nbytes < 14)
+                            return true;
+                    }
+                    break;
+                }
             }
             else
             {
@@ -181,20 +195,7 @@ bool AP_RangeFinder_NRA24::get_reading(uint16_t& reading_cm)
                 break;
             }
         }
-        case Status::GET_ONE_FRAME: {
-            _reading_state = Status::WAITTING;
-            if (buffer_count != 13)
-            {
-                break;//          return false;
-            }
-            if (if_data_frame(linebuf, reading_cm))
-            {
-                bGot = true;
-                if (nbytes < 14)
-                    return true;
-            }
-            break;
-        }
+      //  case Status::GET_ONE_FRAME: 
 
         default:
             break;
