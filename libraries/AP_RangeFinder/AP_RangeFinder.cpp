@@ -48,6 +48,7 @@
 #include "AP_RangeFinder_SITL.h"
 #include "AP_RangeFinder_MSP.h"
 #include "AP_RangeFinder_USD1_CAN.h"
+#include "AP_RangeFinder_NRA24.h"
 
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_Logger/AP_Logger.h>
@@ -555,7 +556,13 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
             _add_backend(new AP_RangeFinder_GYUS42v2(state[instance], params[instance]), instance, serial_instance++);
         }
         break;
-
+    case Type::SP25:
+    case Type::NRA24:
+        if (AP_RangeFinder_NRA24::detect(serial_instance, params[instance])) {
+            drivers[instance] = new AP_RangeFinder_NRA24(state[instance], params[instance], serial_instance++);
+            num_instances = MAX(num_instances, instance + 1);
+        }
+        break;
     case Type::SITL:
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
         _add_backend(new AP_RangeFinder_SITL(state[instance], params[instance], instance), instance);

@@ -151,6 +151,12 @@ public:
         SerialProtocol_ADSB = 35,
         SerialProtocol_AHRS = 36,
         SerialProtocol_SmartAudio = 37,
+        SerialProtocol_NRA24_DOWN = 88,
+        SerialProtocol_NRA24_FORWARD = 89,
+        SerialProtocol_NRA24_BACK = 90,
+        SerialProtocol_NRA24_LEFT = 91,
+        SerialProtocol_NRA24_RIGHT = 92,
+        SerialProtocol_NRA24_UP = 93,
         SerialProtocol_NumProtocols                    // must be the last value
     };
 
