@@ -79,6 +79,7 @@ public:
         RangeFinder_TYPE_BenewakeTF03 = 27,
         RangeFinder_TYPE_NRA24 = 28,
         RangeFinder_TYPE_SP25 = 29,
+        RangeFinder_TYPE_NRA24I2C = 30,
     };
 
     enum RangeFinder_Function {

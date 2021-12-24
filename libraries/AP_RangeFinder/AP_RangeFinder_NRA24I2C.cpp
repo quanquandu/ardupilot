@@ -95,7 +95,7 @@ bool AP_RangeFinder_NRA24I2C::_init(void)
 
     _dev->get_semaphore()->give();
 
-    _dev->register_periodic_callback(100000,
+    _dev->register_periodic_callback(20000,
                                      FUNCTOR_BIND_MEMBER(&AP_RangeFinder_NRA24I2C::_timer, void));
 
     return true;
@@ -104,29 +104,120 @@ bool AP_RangeFinder_NRA24I2C::_init(void)
 // start_reading() - ask sensor to make a range reading
 bool AP_RangeFinder_NRA24I2C::start_reading()
 {
-    uint8_t cmd = AP_RANGE_FINDER_MAXSONARI2CXL_COMMAND_TAKE_RANGE_READING;
+    uint8_t buffer[] = { 0xAA,0xAA,0x00,0x02,0xFE,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x55,0x55 };
 
     // send command to take reading
-    return _dev->transfer(&cmd, sizeof(cmd), nullptr, 0);
+    return _dev->transfer(buffer, sizeof(buffer), nullptr, 0);
 }
 
-// read - return last value measured by sensor
-bool AP_RangeFinder_NRA24I2C::get_reading(uint16_t &reading_cm)
+inline bool if_data_frame(uint8_t* buf, uint16_t& reading_cm) {
+
+    uint8_t* payload = (buf + 4);
+
+    uint8_t* msg_id = (buf + 2);
+
+    if ((msg_id[0] + (((uint16_t)msg_id[1]) << 8)) != 0x70c)
+        return false;
+
+    reading_cm = static_cast<uint16_t>(((payload[2] << 8) + payload[3]));
+    //   hal.uartF->write((uint8_t)reading_cm);//串口测试
+
+    return true;
+}
+
+bool AP_RangeFinder_NRA24I2C::get_reading(uint16_t& reading_cm)
 {
-    be16_t val;
+    bool bGot = false;
+    //if (uart == nullptr) {
+    //    return false;
+    //}
 
-    // take range reading and read back results
-    bool ret = _dev->transfer(nullptr, 0, (uint8_t *) &val, sizeof(val));
+    //uint32_t nbytes = uart->available();
+    uint8_t c;
+    //while (nbytes-- > 0) {
+    while (_dev->transfer(nullptr, 0, &c, sizeof(c) == true)) {
+    //    bool ret = _dev->transfer(nullptr, 0, &c, sizeof(c));
 
-    if (ret) {
-        // combine results into distance
-        reading_cm = be16toh(val);
+        //  hal.uartF->write(c);
+        if (buffer_count > 50) {
+            _reading_state = Status::WAITTING;
+        }
+        switch (_reading_state)
+        {
+        case Status::WAITTING: {
+            if (c == 0xAA)
+            {
+                buffer_count = 0;
+                linebuf[buffer_count] = c;
 
-        // trigger a new reading
-        start_reading();
+                _reading_state = Status::GET_HEAD_ONCE;
+            }
+            break;
+        }
+        case Status::GET_HEAD_ONCE: {
+            if (c == 0xAA) {
+                buffer_count++;
+                linebuf[buffer_count] = c;
+                _reading_state = Status::WAITTING_FOR_TAIL;
+            }
+            else
+            {
+                buffer_count++;
+                linebuf[buffer_count] = 0xAA;
+                buffer_count++;
+                linebuf[buffer_count] = c;
+                _reading_state = Status::WAITTING_FOR_TAIL;
+            }
+
+            break;
+        }
+        case Status::WAITTING_FOR_TAIL: {
+            buffer_count++;
+            linebuf[buffer_count] = c;
+            if (c == 0x55)
+                _reading_state = Status::GET_TAIL_ONCE;
+            break;
+        }
+        case Status::GET_TAIL_ONCE: {
+            if (c == 0x55) {
+                buffer_count++;
+                linebuf[buffer_count] = c;
+                _reading_state = Status::GET_ONE_FRAME;	//		原文这里有问题不应该break
+            }
+            else
+            {
+                _reading_state = Status::WAITTING_FOR_TAIL;//还没有到结尾
+                break;
+            }
+        }
+        case Status::GET_ONE_FRAME: {
+            _reading_state = Status::WAITTING;
+            if (buffer_count != 13)
+            {
+                break;//          return false;
+            }
+            if (if_data_frame(linebuf, reading_cm))
+            {
+                bGot = true;
+                //if (nbytes < 14)
+                //    return true;
+            }
+            break;
+        }
+
+        default:
+            break;
+        }
+
+        if (bGot == true)
+        {
+            return true;
+        }
+
     }
 
-    return ret;
+    return false;
+
 }
 
 /*

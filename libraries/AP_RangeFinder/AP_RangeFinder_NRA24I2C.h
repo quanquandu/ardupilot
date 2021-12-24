@@ -40,4 +40,19 @@ private:
     bool start_reading(void);
     bool get_reading(uint16_t &reading_cm);
     AP_HAL::OwnPtr<AP_HAL::I2CDevice> _dev;
+
+    enum class Status {
+        WAITTING = 0,
+        GET_HEAD_ONCE,
+        GET_HEAD,
+        GET_TAIL_ONCE,
+        GET_TAIL,
+        GET_ONE_FRAME,
+        WAITTING_FOR_TAIL,
+    }_reading_state = Status::WAITTING;
+
+    uint32_t last_reading_ms = 0;
+    uint16_t last_distance_cm = 0;
+    uint8_t linebuf[50];
+    uint8_t buffer_count = 0;
 };

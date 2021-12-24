@@ -41,6 +41,7 @@
 #include "AP_RangeFinder_UAVCAN.h"
 #include "AP_RangeFinder_Lanbao.h"
 #include "AP_RangeFinder_NRA24.h"
+#include "AP_RangeFinder_NRA24I2C.h"
 
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_Logger/AP_Logger.h>
@@ -512,7 +513,16 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
             drivers[instance] = new AP_RangeFinder_NRA24(state[instance], params[instance], serial_instance++);
         }
         break;
-
+    case RangeFinder_TYPE_NRA24I2C:
+        if (params[instance].address) {
+            FOREACH_I2C(i) {
+                if (_add_backend(AP_RangeFinder_NRA24I2C::detect(state[instance], params[instance],
+                    hal.i2c_mgr->get_device(i, params[instance].address)))) {
+                    break;
+                }
+            }
+        }
+        break;
         //这里将会调用我们自己定义的驱动 	if(AP_RangeFinder_NRA24::detect(serial_manager,serial_instance))
     //{
     //    drivers[instance] = new AP_RangeFinder_NRA24(state[instance], serial_manager, serial_instance++);
